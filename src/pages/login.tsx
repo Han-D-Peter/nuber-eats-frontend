@@ -2,15 +2,15 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { FormError } from "../components/form-error";
 import gql from "graphql-tag";
-import { useMutation } from "@apollo/client";
+import { useMutation, ApolloError } from "@apollo/client";
 import {
   loginMutation,
   loginMutationVariables
 } from "../__generated__/loginMutation";
 
 const LOGIN_MUTATION = gql`
-  mutation loginMutation($email: String!, $password: String!) {
-    login(input: { email: $email, password: $password }) {
+  mutation loginMutation($loginInput: LoginInput!) {
+    login(input: $loginInput) {
       ok
       token
       error
@@ -25,18 +25,33 @@ interface ILoginForm {
 
 export const Login = () => {
   const { register, getValues, errors, handleSubmit } = useForm<ILoginForm>();
-  const [loginMutation, { data }] = useMutation<
+  const onCompleted = (data: loginMutation) => {
+    const {
+      login: { error, ok, token }
+    } = data;
+    if (ok) {
+      console.log(token);
+    }
+  };
+  const [loginMutation, { data: loginMutationResult, loading }] = useMutation<
     loginMutation,
     loginMutationVariables
-  >(LOGIN_MUTATION);
+  >(LOGIN_MUTATION, {
+    onCompleted
+  });
+
   const onSubmit = () => {
-    const { email, password } = getValues();
-    loginMutation({
-      variables: {
-        email,
-        password: "1212121112"
-      }
-    });
+    if (!loading) {
+      const { email, password } = getValues();
+      loginMutation({
+        variables: {
+          loginInput: {
+            email,
+            password
+          }
+        }
+      });
+    }
   };
   return (
     <div className="h-screen flex items-center justify-center bg-gray-800">
@@ -71,7 +86,12 @@ export const Login = () => {
           {errors.password?.type === "minLength" && (
             <FormError errorMessage={errors.password?.type} />
           )}
-          <button className="mt-3 btn">Log In</button>
+          <button className="mt-3 btn">
+            {loading ? "Loading..." : "Log In"}
+          </button>
+          {loginMutationResult?.login.error && (
+            <FormError errorMessage={loginMutationResult.login.error} />
+          )}
         </form>
       </div>
     </div>
